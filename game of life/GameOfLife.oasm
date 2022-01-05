@@ -1,0 +1,186 @@
+using Runtime.StandardIO
+using SimpleLib
+
+function main()
+{
+	# initialise the field
+	print(ref "Field width: ")
+	qword [w] = readNumber()
+	print(ref "Field height: ")
+	qword [h] = readNumber()
+	print(ref "Percentage initially alive: ")
+	word [percentage] = readNumber()
+	GameOfLife.Reset([w], [h], [percentage])
+	
+	# simulate on every ENTER press (or other input)
+	mainLoop:
+		GameOfLife.Print()
+		GameOfLife.Simulate()
+		
+		byte(3) [buffer]
+		input(ref [buffer], 3)
+		jmp mainLoop
+	return
+}
+
+function print(String [msg])
+{
+	mov rax, [msg]
+	output(ref [rax + String.c_str], [rax + String.length])
+	return
+}
+
+function readNumber()
+{
+	byte(24) [buffer]
+	rax = input(ref [buffer], 24)
+	ife(cmp [buffer + rax - 2], byte 0dh) # \r => windows newline --> skip two characters at the end
+		dec rax
+	dec rax
+	mov [buffer + rax], byte 0
+	rax = StringLib.parseULong(ref [buffer])
+	return rax
+}
+
+namespace GameOfLife
+{
+	constant Alive = 'O'
+	constant Dead = ' '
+	constant MaxSize = 4096
+	
+	byte(4096) [Field]
+	qword [W] = 0
+	qword [H] = 0
+	
+	function Reset(qword [w], qword [h], word [percentage])
+	{
+		# set globals and check size
+		mov rax, [w]
+		mov rbx, [h]
+		mov [W], rax
+		mov [H], rbx
+		mul rbx
+		ifa(cmp rax, MaxSize)
+			die(ref "Field too big!")
+		
+		# initialise the field
+		mov alias r_percentage = r8w, [percentage]
+		lea alias fieldPtr = rdi, [Field]
+		alias y = rbx
+		alias x = rcx
+		forb(xor y, y; cmp y, [H]; inc y)
+			forb(xor x, x; cmp x, [W]; inc x)
+			{
+				rdrand ax
+				mov si, 100
+				div si
+				mov al, Dead
+				mov si, Alive
+				cmp dx, r_percentage
+				cmovb ax, si
+				mov [fieldPtr], al
+				inc fieldPtr
+			}
+		return
+	}
+	
+	function Print()
+	{
+		lea rax, [Field]
+		mov rbx, [H]
+		qword [fieldPtr] = rax
+		forns(qword [counter] = rbx; dec [counter];)
+		{
+			output([fieldPtr], [W])
+			lea rax, [StringLib.newline]
+			output(ref [rax + String.c_str], [rax + String.length])
+			mov rax, [W]
+			add [fieldPtr], rax
+		}
+		return
+	}
+	
+	function Simulate()
+	{
+		byte(4096) [newField]
+		
+		# load some often-used values
+		lea alias newFieldPtr = rdx, [newField]
+		lea alias fieldPtr = rdi, [Field]
+		mov alias w = r8, [W]
+		mov alias h = r9, [H]
+		mov alias maxX = r10, w
+		mov alias maxY = r11, h
+		mov alias negW = r12, w
+		dec maxX
+		dec maxY
+		neg negW
+		
+		# compute the new field
+		alias y = rbx
+		alias x = rcx
+		forb(xor y, y; cmp y, h; inc y)
+			forb(xor x, x; cmp x, w; inc x)
+			{
+				# count surrounding live cells
+				xor al, al
+				alias count = al
+				
+				ifa(cmp x, 0) # left column
+				{
+					ife(cmp [fieldPtr - 1], byte Alive)
+						inc count
+					ifa(cmp y, 0)
+						ife(cmp [fieldPtr - 1 + negW], byte Alive)
+							inc count
+					ifb(cmp y, maxY)
+						ife(cmp [fieldPtr - 1 + w], byte Alive)
+							inc count
+				}
+				ifb(cmp x, maxX) # right column
+				{
+					ife(cmp [fieldPtr + 1], byte Alive)
+						inc count
+					ifa(cmp y, 0)
+						ife(cmp [fieldPtr + 1 + negW], byte Alive)
+							inc count
+					ifb(cmp y, maxY)
+						ife(cmp [fieldPtr + 1 + w], byte Alive)
+							inc count
+				}
+				ifa(cmp y, 0) # top
+					ife(cmp [fieldPtr + negW], byte Alive)
+						inc count
+				ifb(cmp y, maxY) # bottom
+					ife(cmp [fieldPtr + w], byte Alive)
+						inc count
+				
+				# update cell
+				ife(cmp [fieldPtr], byte Alive)
+				{
+					ifb(cmp count, 2)
+						mov [newFieldPtr], byte Dead
+					else ifa(cmp count, 3)
+						mov [newFieldPtr], byte Dead
+					else
+						mov [newFieldPtr], byte Alive
+				}
+				else ife(cmp count, 3)
+					mov [newFieldPtr], byte Alive
+				else
+					mov [newFieldPtr], byte Dead
+				
+				inc fieldPtr
+				inc newFieldPtr
+			}
+		
+		# copy the new field
+		mov rax, w
+		mul h
+		mov rcx, rax
+		lea rsi, [newField]
+		lea rdi, [Field]
+		rep movsb
+		return
+	}
+}

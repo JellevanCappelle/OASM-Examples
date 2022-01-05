@@ -1,0 +1,191 @@
+using Kernel32
+using Runtime
+
+namespace SimpleLib
+{
+	function die(String [msg])
+	{
+		mov rax, [msg]
+		StandardIO.debug(ref [rax + String.c_str], [rax + String.length])
+		ExitProcess(1)
+	}
+
+	namespace StringLib # TODO: rewrite some functions to make use of aliased registers
+	{
+		string [newline] = "\r\n"
+		bytes [hexCharacters] = '0123456789abcdef'
+		string [parseError] = "Attempted to parse a bad string."
+	
+		function byteToHex(byte [x], qword [buffer])
+		{
+			xor rax, rax
+			lea rbx, [hexCharacters]
+			mov rcx, [buffer]
+			
+			mov al, [x]
+			shr al, 4
+			mov al, [rbx + rax]
+			mov [rcx], al
+			mov al, [x]
+			and al, 0xf
+			mov al, [rbx + rax]
+			mov [rcx + 1], al
+			return
+		}
+		
+		function wordToHex(word [x], qword [buffer])
+		{
+			mov ax, [x]
+			lea rbx, [hexCharacters]
+			mov rcx, [buffer]
+			add rcx, 3
+			xor rdx, rdx
+			do
+			{
+				mov dl, al
+				and dl, 0xf
+				mov dl, [rbx + rdx]
+				mov [rcx], dl
+				shr ax, 4
+			}
+			fornz(byte [nibbles] = 4; dec [nibbles]; dec rcx)
+			return
+		}
+		
+		function dwordToHex(dword [x], qword [buffer])
+		{
+			mov eax, [x]
+			lea rbx, [hexCharacters]
+			mov rcx, [buffer]
+			add rcx, 7
+			xor rdx, rdx
+			do
+			{
+				mov dl, al
+				and dl, 0xf
+				mov dl, [rbx + rdx]
+				mov [rcx], dl
+				shr eax, 4
+			}
+			fornz(byte [nibbles] = 8; dec [nibbles]; dec rcx)
+			return
+		}
+		
+		function qwordToHex(qword [x], qword [buffer])
+		{
+			mov rax, [x]
+			lea rbx, [hexCharacters]
+			mov rcx, [buffer]
+			add rcx, 15
+			xor rdx, rdx
+			do
+			{
+				mov dl, al
+				and dl, 0xf
+				mov dl, [rbx + rdx]
+				mov [rcx], dl
+				shr rax, 4
+			}
+			fornz(byte [nibbles] = 16; dec [nibbles]; dec rcx)
+			return
+		}
+		
+		function uByteToString(byte [x], qword [buffer])
+		{
+			xor rax, rax
+			mov al, [x]
+			rax = uLongToString(rax, [buffer])
+			return rax
+		}
+		
+		function uShortToString(word [x], qword [buffer])
+		{
+			xor rax, rax
+			mov ax, [x]
+			rax = uLongToString(rax, [buffer])
+			return rax
+		}
+		
+		function uIntToString(dword [x], qword [buffer])
+		{
+			xor rax, rax
+			mov eax, [x]
+			rax = uLongToString(rax, [buffer])
+			return rax
+		}
+		
+		function uLongToString(qword [x], qword [buffer])
+		{
+			# write digits to [temp] in reverse
+			byte(21) [temp]
+			mov rax, [x]
+			lea rbx, [temp]
+			xor rcx, rcx
+			mov cl, 10
+			lea r8, [hexCharacters]
+			do
+			{
+				xor rdx, rdx
+				div rcx				# rdx = rax % 10; rax /= 10;
+				mov dl, [r8 + rdx]	# get the lowest digit of the previous value of rax
+				mov [rbx], dl			# store it and continue
+				inc rbx
+			}
+			whilenz(and rax, rax)
+			
+			# write to [buffer] in the correct order
+			dec rbx					# points to last digit in [temp], first digit of the actual number
+			lea rax, [temp]
+			mov rcx, [buffer]
+			do
+			{
+				mov dl, [rbx]
+				mov [rcx], dl
+				dec rbx
+				inc rcx
+			}
+			whilenb(cmp rbx, rax)
+			mov byte [rcx], 0		# add terminating zero
+			
+			# return length
+			sub rcx, [buffer]
+			return rcx
+		}
+		
+		function parseULong(qword [c_str])
+		{
+			mov rax, [c_str]
+			xor rbx, rbx
+			xor r8, r8
+			xor cx, cx
+			mov dx, 1
+			
+			ife(cmp byte [rax], 0) # ensure there is at least one character in the string
+				die(ref [parseError])
+			
+			do
+			{
+				# test if '0' <= [rax] <= '9'
+				mov bl, [rax]
+				cmp bl, '0'
+				cmovb cx, dx
+				cmp bl, '9'
+				cmova cx, dx
+				ifnz(and cx, cx)
+					die(ref [parseError])
+				
+				# result = result * 10 + digit
+				sub bl, '0'
+				mov r9, r8
+				shl r8, 3
+				shl r9, 1
+				add r8, r9
+				add r8, rbx
+				
+				inc rax
+			}
+			whilene(cmp byte [rax], 0)
+			return r8
+		}
+	}
+}
