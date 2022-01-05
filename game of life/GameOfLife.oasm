@@ -92,8 +92,7 @@ namespace GameOfLife
 		forns(qword [counter] = rbx; dec [counter];)
 		{
 			output([fieldPtr], [W])
-			lea rax, [StringLib.newline]
-			output(ref [rax + String.c_str], [rax + String.length])
+			output(ref [StringLib.newline + String.c_str], [StringLib.newline + String.length])
 			mov rax, [W]
 			add [fieldPtr], rax
 		}
