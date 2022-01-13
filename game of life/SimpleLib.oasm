@@ -92,24 +92,21 @@ namespace SimpleLib
 		
 		function uByteToString(byte [x], qword [buffer])
 		{
-			xor rax, rax
-			mov al, [x]
+			movzx rax, byte [x]
 			rax = uLongToString(rax, [buffer])
 			return rax
 		}
 		
 		function uShortToString(word [x], qword [buffer])
 		{
-			xor rax, rax
-			mov ax, [x]
+			movzx rax, word [x]
 			rax = uLongToString(rax, [buffer])
 			return rax
 		}
 		
 		function uIntToString(dword [x], qword [buffer])
 		{
-			xor rax, rax
-			mov eax, [x]
+			mov eax, [x] # clears upper 32 bits of rax
 			rax = uLongToString(rax, [buffer])
 			return rax
 		}
@@ -154,38 +151,36 @@ namespace SimpleLib
 		
 		function parseULong(qword [c_str])
 		{
-			mov rax, [c_str]
-			xor rbx, rbx
-			xor r8, r8
-			xor cx, cx
-			mov dx, 1
+			mov alias currentChar = rax, [c_str]
 			
-			ife(cmp byte [rax], 0) # ensure there is at least one character in the string
+			ife(cmp byte [currentChar], 0) # ensure there is at least one character in the string
 				die(ref [parseError])
 			
+			xor alias result = r8, r8
+			xor rbx, rbx
 			do
 			{
-				# test if '0' <= [rax] <= '9'
-				mov bl, [rax]
+				# test if '0' <= digit <= '9'
+				mov bl, [currentChar]
 				cmp bl, '0'
-				cmovb cx, dx
+				setb cl
 				cmp bl, '9'
-				cmova cx, dx
-				ifnz(and cx, cx)
+				seta dl
+				ifnz(or cl, dl)
 					die(ref [parseError])
 				
 				# result = result * 10 + digit
 				sub bl, '0'
-				mov r9, r8
-				shl r8, 3
+				mov r9, result
+				shl result, 3
 				shl r9, 1
-				add r8, r9
-				add r8, rbx
+				add result, r9
+				add result, rbx
 				
-				inc rax
+				inc currentChar
 			}
-			whilene(cmp byte [rax], 0)
-			return r8
+			whilene(cmp byte [currentChar], 0)
+			return result
 		}
 	}
 }

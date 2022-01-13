@@ -9,7 +9,7 @@ function main()
 	print(ref "Field height: ")
 	qword [h] = readNumber()
 	print(ref "Percentage initially alive: ")
-	word [percentage] = readNumber()
+	byte [percentage] = readNumber()
 	GameOfLife.Reset([w], [h], [percentage])
 	
 	# simulate on every ENTER press (or other input)
@@ -52,7 +52,7 @@ namespace GameOfLife
 	qword [W] = 0
 	qword [H] = 0
 	
-	function Reset(qword [w], qword [h], word [percentage])
+	function Reset(qword [w], qword [h], byte [percentage])
 	{
 		# set globals and check size
 		mov rax, [w]
@@ -64,20 +64,21 @@ namespace GameOfLife
 			die(ref "Field too big!")
 		
 		# initialise the field
-		mov alias r_percentage = r8w, [percentage]
+		movzx alias r_percentage = bx, byte [percentage]
+		mov alias r_Alive = cx, Alive
+		mov alias _100 = r8w, 100
 		lea alias fieldPtr = rdi, [Field]
-		alias y = rbx
-		alias x = rcx
+		alias y = rsi
+		alias x = r9
 		forb(xor y, y; cmp y, [H]; inc y)
 			forb(xor x, x; cmp x, [W]; inc x)
 			{
 				rdrand ax
-				mov si, 100
-				div si
+				xor dx, dx
+				div _100
 				mov al, Dead
-				mov si, Alive
 				cmp dx, r_percentage
-				cmovb ax, si
+				cmovb ax, r_Alive
 				mov [fieldPtr], al
 				inc fieldPtr
 			}
