@@ -1,0 +1,10 @@
+{
+  "platform": "win64",
+  "abi": "win64",
+  "format":  "win64",
+  "runtime": "stdio",
+  "sourceDir": ".",
+  "parserCacheDir": "temp",
+  "tempDir": "temp",
+  "outputFile": "test.exe"
+}

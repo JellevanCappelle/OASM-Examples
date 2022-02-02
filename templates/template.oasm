@@ -1,0 +1,92 @@
+using Runtime.StandardIO
+using SimpleLib
+
+struct s1
+{
+	byte [x]
+}
+
+struct s2
+{
+	word [x]
+}
+
+struct s3
+{
+	byte(3) [x]
+}
+
+struct DecimalByte
+{
+	byte [x]
+	
+	method ToString(qword [buffer])
+	{
+		mov alias r_this = rax, [this]
+		StringLib.uByteToString([r_this + x], [buffer])
+		return
+	}
+}
+
+struct HexByte
+{
+	byte [x]
+	
+	method ToString(qword [buffer])
+	{
+		mov alias r_this = rax, [this]
+		mov alias r_buffer = rbx, [buffer]
+		mov dword [r_buffer + String.length], 4
+		mov byte [r_buffer + String.c_str], '0'
+		mov byte [r_buffer + String.c_str + 1], 'x'
+		mov byte [r_buffer + String.c_str + 4], 0
+		StringLib.byteToHex([r_this + x], ref [r_buffer + String.c_str + 2])
+		return
+	}
+}
+
+function main()
+{
+	printString(ref "Size of s1: ")
+	printSizeOf<s1>()
+	printString(ref "Size of s2: ")
+	printSizeOf<s2>()
+	printString(ref "Size of s3: ")
+	printSizeOf<s3>()
+	printString(ref "Size of String: ")
+	printSizeOf<String>()
+	printString(ref "Size of s1 (again): ")
+	printSizeOf<s1>()
+	
+	byte [x] = 42
+	print<DecimalByte>(ref [x])
+	printString(ref " = ")
+	print<HexByte>(ref [x])
+	return
+}
+
+function printString(String [msg])
+{
+	mov rax, [msg]
+	output(ref [rax + String.c_str], [rax + String.length])
+	return
+}
+
+function printSizeOf<T>()
+{
+	byte(32) [buffer]
+	mov rax, sizeof(T)
+	StringLib.uLongToString(rax, ref [buffer])
+	printString(ref [buffer])
+	printString(ref [StringLib.newline])
+	return
+}
+
+function print<T>(T [x])
+{
+	byte(128) [buffer]
+	[x].ToString(ref [buffer])
+	printString(ref [buffer])
+	return
+}
+
