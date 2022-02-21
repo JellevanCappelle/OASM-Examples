@@ -23,8 +23,8 @@ struct DecimalByte
 	method ToString(qword [buffer])
 	{
 		mov alias r_this = rax, [this]
-		StringLib.uByteToString([r_this + x], [buffer])
-		return
+		rax = StringLib.uByteToString([r_this + x], [buffer])
+		return rax
 	}
 }
 
@@ -40,8 +40,8 @@ struct HexByte
 		mov byte [r_buffer + String.c_str], '0'
 		mov byte [r_buffer + String.c_str + 1], 'x'
 		mov byte [r_buffer + String.c_str + 4], 0
-		StringLib.byteToHex([r_this + x], ref [r_buffer + String.c_str + 2])
-		return
+		rax = StringLib.byteToHex([r_this + x], ref [r_buffer + String.c_str + 2])
+		return rax
 	}
 }
 
@@ -75,7 +75,7 @@ function printString(String [msg])
 function printSizeOf<T>()
 {
 	byte(32) [buffer]
-	mov rax, sizeof(T)
+	mov rax, sizeof<value<T>>
 	StringLib.uLongToString(rax, ref [buffer])
 	printString(ref [buffer])
 	printString(ref [StringLib.newline])
@@ -90,3 +90,7 @@ function print<T>(T [x])
 	return
 }
 
+function printArray<T>(Array<value<T>> [array])
+{
+	# TODO
+}
